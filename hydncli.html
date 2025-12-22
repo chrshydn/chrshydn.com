@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>hydnCLI · Chris Hayden</title>
+  <meta content="An interactive CLI experience to explore Chris Hayden's portfolio" name="description">
+  <meta content="hydnCLI · Chris Hayden" property="og:title">
+  <meta content="An interactive CLI experience to explore Chris Hayden's portfolio" property="og:description">
+  <meta content="https://cdn.prod.website-files.com/658b0e5af1b468de2a7ff594/658f23665b4b0727a0f2af3c_openGraphQuote.png" property="og:image">
+  <meta property="og:type" content="website">
+  <meta content="summary_large_image" name="twitter:card">
+  <meta content="width=device-width, initial-scale=1" name="viewport">
+  <link href="images/favicon.png" rel="shortcut icon" type="image/x-icon">
+  <link href="images/webclip.png" rel="apple-touch-icon">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      /* VS Code Dark+ Theme Colors */
+      --vscode-bg: #1e1e1e;
+      --vscode-panel-bg: #252526;
+      --vscode-border: #3c3c3c;
+      --vscode-fg: #cccccc;
+      --vscode-fg-dim: #808080;
+      --vscode-blue: #569cd6;
+      --vscode-light-blue: #9cdcfe;
+      --vscode-green: #6a9955;
+      --vscode-bright-green: #4ec9b0;
+      --vscode-yellow: #dcdcaa;
+      --vscode-orange: #ce9178;
+      --vscode-red: #f44747;
+      --vscode-magenta: #c586c0;
+      --vscode-cyan: #4fc1ff;
+      --vscode-white: #d4d4d4;
+      --vscode-selection: rgba(38, 79, 120, 0.5);
+      --vscode-highlight: #264f78;
+    }
+
+    body {
+      background-color: #1e1e1e;
+      font-family: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 96px;
+    }
+
+    .cli-container {
+      width: 100%;
+      max-width: 1408px;
+      height: calc(100vh - 80px);
+      min-height: 500px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* VS Code Panel Frame */
+    .terminal-frame {
+      background: var(--vscode-bg);
+      border: 1px solid var(--vscode-border);
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    /* VS Code Style Header */
+    .terminal-header {
+      background: var(--vscode-panel-bg);
+      border-bottom: 1px solid var(--vscode-border);
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      height: 35px;
+    }
+
+    .terminal-tabs {
+      display: flex;
+      align-items: center;
+      height: 100%;
+    }
+
+    .terminal-tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      height: 100%;
+      background: var(--vscode-bg);
+      border-right: 1px solid var(--vscode-border);
+      cursor: default;
+    }
+
+    .terminal-tab-icon {
+      width: 14px;
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .terminal-tab-icon svg {
+      width: 14px;
+      height: 14px;
+      fill: var(--vscode-fg-dim);
+    }
+
+    .terminal-tab-name {
+      color: var(--vscode-fg);
+      font-size: 13px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .terminal-tab-close {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 3px;
+      cursor: pointer;
+      color: var(--vscode-fg-dim);
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .terminal-tab-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--vscode-fg);
+    }
+
+    .terminal-actions {
+      display: flex;
+      align-items: center;
+      padding-right: 8px;
+      gap: 4px;
+    }
+
+    .terminal-action {
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 3px;
+      cursor: pointer;
+      color: var(--vscode-fg-dim);
+    }
+
+    .terminal-action:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--vscode-fg);
+    }
+
+    .terminal-action svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+
+    /* Terminal Body */
+    .terminal-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .terminal-content {
+      flex: 1;
+      padding: 12px 16px;
+      overflow-y: auto;
+      font-size: 13px;
+      line-height: 1.4;
+      color: var(--vscode-fg);
+    }
+
+    .terminal-content::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    .terminal-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .terminal-content::-webkit-scrollbar-thumb {
+      background: rgba(121, 121, 121, 0.4);
+      border-radius: 5px;
+    }
+
+    .terminal-content::-webkit-scrollbar-thumb:hover {
+      background: rgba(121, 121, 121, 0.6);
+    }
+
+    /* Terminal Text Styles */
+    .output-line {
+      margin-bottom: 1px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .prompt { color: var(--vscode-bright-green); }
+    .command { color: var(--vscode-white); }
+    .info { color: var(--vscode-cyan); }
+    .success { color: var(--vscode-bright-green); }
+    .warning { color: var(--vscode-yellow); }
+    .error { color: var(--vscode-red); }
+    .muted { color: var(--vscode-fg-dim); }
+    .highlight { color: var(--vscode-magenta); }
+
+    .link {
+      color: var(--vscode-blue);
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    .link:hover {
+      color: var(--vscode-light-blue);
+    }
+
+    /* Logo */
+    .logo-art {
+      color: var(--vscode-fg);
+      font-size: 13px;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+
+    .logo-caption {
+      color: var(--vscode-fg-dim);
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    /* Options */
+    .option-item {
+      margin: 2px 0;
+    }
+
+    .option-marker {
+      color: var(--vscode-fg);
+    }
+
+    /* Input Line */
+    .input-line {
+      display: flex;
+      align-items: center;
+      margin-top: 4px;
+    }
+
+    .input-prompt {
+      color: var(--vscode-bright-green);
+      margin-right: 8px;
+      flex-shrink: 0;
+    }
+
+    #command-input {
+      background: transparent;
+      border: none;
+      color: var(--vscode-white);
+      font-family: inherit;
+      font-size: 13px;
+      flex: 1;
+      outline: none;
+      caret-color: var(--vscode-fg);
+    }
+
+    /* Responsive */
+    @media screen and (max-width: 991px) {
+      body { padding: 32px 64px; }
+      .cli-container { height: calc(100vh - 64px); }
+    }
+
+    @media screen and (max-width: 767px) {
+      body { padding: 24px 40px; }
+      .cli-container { height: calc(100vh - 48px); }
+      .terminal-content { font-size: 12px; padding: 12px; }
+      .logo-art { font-size: 11px; }
+      .logo-caption { font-size: 12px; }
+    }
+
+    @media screen and (max-width: 479px) {
+      body { padding: 16px 20px; }
+      .cli-container { height: calc(100vh - 32px); }
+      .terminal-content { font-size: 11px; padding: 10px; }
+      .logo-art { font-size: 9px; }
+      .logo-caption { font-size: 11px; }
+      .terminal-tab-name { font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="cli-container">
+    <div class="terminal-frame">
+      <div class="terminal-header">
+        <div class="terminal-tabs">
+          <div class="terminal-tab">
+            <div class="terminal-tab-icon">
+              <svg viewBox="0 0 16 16"><path d="M6 9l3-3-3-3-.707.707L7.586 6 5.293 8.293 6 9zm4 1H7v1h3v-1z"/><path fill-rule="evenodd" d="M14 2H2v12h12V2zM1 2a1 1 0 011-1h12a1 1 0 011 1v12a1 1 0 01-1 1H2a1 1 0 01-1-1V2z" clip-rule="evenodd"/></svg>
+            </div>
+            <span class="terminal-tab-name">hydnCLI</span>
+            <div class="terminal-tab-close" onclick="window.location.href='index.html'" title="Close">×</div>
+          </div>
+        </div>
+        <div class="terminal-actions">
+          <div class="terminal-action" title="Split Terminal">
+            <svg viewBox="0 0 16 16"><path d="M14 1H3L2 2v11l1 1h11l1-1V2l-1-1zM8 13H3V2h5v11zm6 0H9V2h5v11z"/></svg>
+          </div>
+          <div class="terminal-action" title="Kill Terminal" onclick="window.location.href='index.html'">
+            <svg viewBox="0 0 16 16"><path d="M15 8H1V7h14v1z"/><path d="M8 1v14H7V1h1z"/></svg>
+          </div>
+          <div class="terminal-action" title="Maximize Panel">
+            <svg viewBox="0 0 16 16"><path d="M3 3v10h10V3H3zm9 9H4V4h8v8z"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="terminal-body">
+        <div class="terminal-content" id="terminal-output">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Portfolio Data
+    const portfolioData = {
+      featured: [
+        {
+          name: "Wonderlic",
+          slug: "wonderlic",
+          year: "2021 – present",
+          summary: "At Wonderlic, I led the redesign of Wonderlic Select, a pre-employment assessment platform used by thousands of organizations. The project involved rethinking the entire candidate experience, from test-taking interfaces to results delivery, while maintaining the scientific rigor the product is known for.\n\nI also spearheaded the launch of Wonderlic Develop, a new product focused on employee development and growth. This involved building design systems from scratch, conducting extensive user research, and collaborating closely with engineering to ship features that transformed how companies approach talent development."
+        },
+        {
+          name: "Sloper",
+          slug: "sloper",
+          year: "2025 – present",
+          summary: "Sloper is a climbing tracker I designed and developed as a solo founder. The app helps indoor and outdoor climbers log their sessions, track progress across different grades, and visualize improvement over time. It's now live on the App Store.\n\nThe project pushed me to wear every hat—product strategy, UX research, visual design, and front-end development. I focused on creating an interface that stays out of the way during climbs while providing meaningful insights during rest periods."
+        },
+        {
+          name: "Cassette",
+          slug: "cassette",
+          year: "2024",
+          summary: "Cassette was an audio-first streaming platform built around a simple insight: movies already have narrator tracks for accessibility, but they rarely make it to mainstream services. We set out to turn films into a fully audio experience for anyone who wants to enjoy movies while commuting, exercising, or multitasking.\n\nI handled all design work—branding, UI/UX, and marketing. The app featured an LLM-powered search that let users ask for recommendations verbally and hear spoken results. While licensing challenges prevented a commercial launch, the project proved what's possible in an overlooked market."
+        },
+        {
+          name: "Ukuu",
+          slug: "ukuu",
+          year: "2022",
+          summary: "Ukuu was a peer-to-peer lending platform designed to help people rent items from their neighbors instead of buying tools or equipment they'd only use once. The concept addressed both the financial burden of one-time purchases and the waste of items sitting unused in garages.\n\nAs lead designer, I took the product from rough functional mockups to polished, production-ready interfaces. User feedback drove key decisions around trust signals, insurance handling, and the exchange flow. The work reinforced how critical perceived security is in peer-to-peer platforms."
+        },
+        {
+          name: "LassoPay",
+          slug: "lassopay",
+          year: "2022",
+          summary: "LassoPay was a Shopify app that enabled one-comment purchases on Instagram. The idea was simple: see something you like, comment to buy it, and the transaction happens automatically. No clicking through to a website, no checkout friction.\n\nI designed the complete product experience, from the merchant dashboard to the buyer confirmation flow, along with brand identity and marketing materials. The project required balancing simplicity for impulse purchases with the necessary safeguards for legitimate transactions."
+        },
+        {
+          name: "PopFlash",
+          slug: "popflash",
+          year: "2021",
+          summary: "PopFlash was a custom match-server platform for CS:GO, offering 128-tick servers and competitive features that the base game lacked. The platform served a community of players looking for a more serious competitive environment.\n\nI led design and visual identity for the project, creating interfaces for server browsing, match history, and player statistics. The work involved understanding a passionate gaming community and designing tools that felt native to their competitive mindset."
+        }
+      ],
+      projects: [],
+      shipped: [
+        {
+          name: "Sloper",
+          slug: "sloper",
+          year: "2025 – present",
+          url: "https://sloperapp.com",
+          summary: "Sloper is a climbing tracker I designed and developed as a solo founder. The app helps indoor and outdoor climbers log their sessions, track progress across different grades, and visualize improvement over time. It's now live on the App Store.\n\nThe project pushed me to wear every hat—product strategy, UX research, visual design, and front-end development. I focused on creating an interface that stays out of the way during climbs while providing meaningful insights during rest periods."
+        },
+        {
+          name: "Notionary",
+          slug: null,
+          year: "2024 – present",
+          url: "https://notionary.app",
+          summary: "Notionary is a lightweight note-taking tool I built and shipped independently. The focus was on speed and simplicity—getting thoughts captured without the overhead of complex organization systems.\n\nThe project was an exercise in restraint, deliberately avoiding feature creep to maintain the core promise of frictionless note capture. It reinforced my belief that the best tools often do less, not more."
+        }
+      ],
+      skills: ["Product Thinking", "Systems Design", "End-to-End Execution", "Technical Design", "Product Narrative", "Craft & Quality"],
+      tools: ["Design Systems & Interface Tooling", "AI & LLM Integration", "Product Engineering Environments", "Web & App Production Platforms", "Product Operations & Delivery", "Creative & Media Production"],
+      experience: [
+        { company: "Sloper", role: "Solo Founder", period: "Dec. 2024 – present" },
+        { company: "Wonderlic", role: "Senior Product Designer", period: "Aug. 2021 – present" },
+        { company: "ReadMyCards", role: "Founding Designer", period: "Mar. 2023 (Sold Sep. 2023)" },
+        { company: "Abstract Replacement", role: "Lead Designer", period: "Dec. 2020 – Feb. 2023" },
+        { company: "Lede", role: "Founding Designer", period: "Apr. 2020 – May 2021" },
+        { company: "Sojourn", role: "Lead Designer", period: "Aug. 2015 – Sep. 2020" }
+      ],
+      about: {
+        name: "Chris Hayden",
+        title: "Product Designer & Engineer",
+        location: "Miami, FL",
+        email: "haydencm@outlook.com",
+        bio: "With over fifteen years in design, I've done a little bit of everything. I've launched solo ventures, built out products alongside world-class teams, and contributed within well-established companies.\n\nI believe curiosity and perseverance are the best tools of a designer—and fundamental to building great products.\n\nMy availability is limited, but I'm always open to exploring new opportunities with stellar individuals and growing companies. Thanks for checking out my work."
+      },
+      social: {
+        dribbble: "https://dribbble.com/chrshydn",
+        linkedin: "https://www.linkedin.com/in/chrshydn/",
+        github: "https://github.com/chrshydn",
+        instagram: "https://www.instagram.com/chrshydn/"
+      }
+    };
+
+    // Terminal State
+    const terminalOutput = document.getElementById('terminal-output');
+    let commandHistory = [];
+    let historyIndex = -1;
+
+    // Logo Art
+    const logoArt = `┏━━━━━━━━━━━━━━━━━━━━┓
+┃                    ┃
+┃   ▄████   ██  ██   ┃
+┃   ██      ██████   ┃
+┃   ▀████   ██  ██   ┃
+┃                    ┃
+┗━━━━━━━━━━━━━━━━━━━━┛`;
+
+    const captionText = "I'm Chris, a product designer and engineer based in Miami.";
+
+    // Initialize Terminal
+    function initTerminal() {
+      printLogo();
+      printLine('');
+      printIntroSuggestions();
+      createInputLine();
+      focusInput();
+    }
+
+    function printLogo() {
+      const pre = document.createElement('pre');
+      pre.className = 'logo-art';
+      pre.textContent = logoArt;
+      terminalOutput.appendChild(pre);
+
+      const caption = document.createElement('div');
+      caption.className = 'logo-caption';
+      caption.textContent = captionText;
+      terminalOutput.appendChild(caption);
+    }
+
+    function printLine(text, className = '') {
+      const line = document.createElement('div');
+      line.className = 'output-line ' + className;
+      line.innerHTML = text;
+      terminalOutput.appendChild(line);
+      scrollToBottom();
+    }
+
+    function printIntroSuggestions() {
+      printLine('');
+      printLine('Welcome to my portfolio.');
+      printLine('');
+      printLine('- list              list all work');
+      printLine('- view [name]       view project details');
+      printLine('- about             about me');
+      printLine('- experience        work history');
+      printLine('- skills            skills list');
+      printLine('- tools             tools list');
+      printLine('- contact           contact info');
+      printLine('- social            social links');
+      printLine('- clear             clear terminal');
+      printLine('- exit              return to portfolio');
+      printLine('');
+    }
+
+    function createInputLine() {
+      const existing = document.querySelector('.input-line');
+      if (existing) existing.remove();
+
+      const inputLine = document.createElement('div');
+      inputLine.className = 'input-line';
+      inputLine.innerHTML = `
+        <span class="input-prompt">❯</span>
+        <input type="text" id="command-input" autocomplete="off" spellcheck="false" autofocus>
+      `;
+      terminalOutput.appendChild(inputLine);
+
+      const input = document.getElementById('command-input');
+      input.addEventListener('keydown', handleKeyDown);
+      scrollToBottom();
+    }
+
+    function focusInput() {
+      const input = document.getElementById('command-input');
+      if (input) input.focus();
+    }
+
+    function scrollToBottom() {
+      terminalOutput.scrollTop = terminalOutput.scrollHeight;
+    }
+
+    function handleKeyDown(e) {
+
+      const input = e.target;
+
+      if (e.key === 'Enter') {
+        const command = input.value.trim();
+        if (command) {
+          commandHistory.push(command);
+          historyIndex = commandHistory.length;
+        }
+        executeCommand(command);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (historyIndex > 0) {
+          historyIndex--;
+          input.value = commandHistory[historyIndex];
+        }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (historyIndex < commandHistory.length - 1) {
+          historyIndex++;
+          input.value = commandHistory[historyIndex];
+        } else {
+          historyIndex = commandHistory.length;
+          input.value = '';
+        }
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        autoComplete(input);
+      }
+    }
+
+    function autoComplete(input) {
+      const val = input.value.toLowerCase();
+
+      // Check if typing a view command
+      if (val.startsWith('view ')) {
+        const partialName = val.slice(5);
+        const allProjects = [...portfolioData.featured, ...portfolioData.projects, ...portfolioData.shipped];
+        const projectNames = allProjects.map(p => p.name.toLowerCase());
+        const match = projectNames.find(n => n.startsWith(partialName) && n !== partialName);
+        if (match) input.value = 'view ' + match;
+        return;
+      }
+
+      const commands = ['list', 'view', 'about', 'skills', 'tools', 'experience', 'contact', 'help', 'clear', 'exit', 'social'];
+      const match = commands.find(c => c.startsWith(val) && c !== val);
+      if (match) input.value = match;
+    }
+
+    function executeCommand(command) {
+      const inputLine = document.querySelector('.input-line');
+      if (inputLine) inputLine.remove();
+
+      printLine(`<span class="prompt">❯</span> <span class="command">${command || ''}</span>`);
+
+      if (!command) {
+        createInputLine();
+        focusInput();
+        return;
+      }
+
+      const cmd = command.toLowerCase().trim();
+      const args = cmd.split(' ');
+      const baseCmd = args[0];
+
+      // Handle view command with argument
+      if (baseCmd === 'view') {
+        const projectName = args.slice(1).join(' ');
+        if (!projectName) {
+          printLine('Usage: view <project-name>', 'error');
+          printLine('Run <span class="warning">list</span> to see available projects.', 'muted');
+          printLine('');
+          createInputLine();
+        } else {
+          viewProject(projectName);
+        }
+        return;
+      }
+
+      switch (baseCmd) {
+        case 'help':
+        case '?':
+          showHelp();
+          createInputLine();
+          break;
+        case 'list':
+        case 'ls':
+        case 'projects':
+          showProjectList();
+          createInputLine();
+          break;
+        case 'about':
+        case 'whoami':
+          showAbout();
+          createInputLine();
+          break;
+        case 'skills':
+          showSkills();
+          createInputLine();
+          break;
+        case 'tools':
+          showTools();
+          createInputLine();
+          break;
+        case 'experience':
+        case 'exp':
+        case 'work':
+          showExperience();
+          createInputLine();
+          break;
+        case 'contact':
+        case 'email':
+          showContact();
+          createInputLine();
+          break;
+        case 'social':
+          showSocial();
+          createInputLine();
+          break;
+        case 'clear':
+        case 'cls':
+          clearTerminal();
+          createInputLine();
+          break;
+        case 'exit':
+        case 'quit':
+        case 'q':
+          printLine('Closing terminal...');
+          setTimeout(() => window.location.href = 'index.html', 400);
+          break;
+        default:
+          printLine('command not found: ' + command);
+          printLine('Type "help" for available commands.');
+          printLine('');
+          createInputLine();
+      }
+
+      focusInput();
+    }
+
+    function showHelp() {
+      printLine('');
+      printLine('usage:');
+      printLine('');
+      printLine('- list              list all work');
+      printLine('- view [name]       view project details');
+      printLine('- about             about me');
+      printLine('- experience        work history');
+      printLine('- skills            skills list');
+      printLine('- tools             tools list');
+      printLine('- contact           contact info');
+      printLine('- social            social links');
+      printLine('- clear             clear terminal');
+      printLine('- exit              return to portfolio');
+      printLine('');
+    }
+
+    function showProjectList() {
+      printLine('');
+      printLine('featured:');
+      portfolioData.featured.forEach(p => {
+        printLine('- ' + p.name);
+      });
+      printLine('');
+
+      if (portfolioData.projects.length > 0) {
+        printLine('projects:');
+        portfolioData.projects.forEach(p => {
+          printLine('- ' + p.name);
+        });
+        printLine('');
+      }
+
+      printLine('independently shipped:');
+      portfolioData.shipped.forEach(p => {
+        printLine('- ' + p.name);
+      });
+      printLine('');
+    }
+
+    function viewProject(name) {
+      // Find project by name across all categories (fuzzy match)
+      const searchName = name.toLowerCase().replace(/[-_]/g, '');
+      const allProjects = [...portfolioData.featured, ...portfolioData.projects, ...portfolioData.shipped];
+      const project = allProjects.find(p => {
+        const projectName = p.name.toLowerCase().replace(/[-_\s]/g, '');
+        return projectName.includes(searchName) || searchName.includes(projectName);
+      });
+
+      if (!project) {
+        printLine('Project not found: ' + name);
+        printLine('Run "list" to see available projects.');
+        printLine('');
+        createInputLine();
+        focusInput();
+        return;
+      }
+
+      // Create loading animation
+      printLine('');
+      const loadingLine = document.createElement('div');
+      loadingLine.className = 'output-line';
+      loadingLine.id = 'loading-line';
+      terminalOutput.appendChild(loadingLine);
+      scrollToBottom();
+
+      const totalWidth = 30;
+      let progress = 0;
+      const loadingSteps = [
+        'Fetching project data...',
+        'Loading assets...',
+        'Rendering content...'
+      ];
+      let stepIndex = 0;
+
+      const loadingInterval = setInterval(() => {
+        progress += Math.random() * 8 + 2;
+        if (progress > 100) progress = 100;
+
+        const filled = Math.floor((progress / 100) * totalWidth);
+        const empty = totalWidth - filled;
+        const bar = '█'.repeat(filled) + '░'.repeat(empty);
+        const percent = Math.floor(progress).toString().padStart(3, ' ');
+
+        if (progress > 33 && stepIndex === 0) stepIndex = 1;
+        if (progress > 66 && stepIndex === 1) stepIndex = 2;
+
+        loadingLine.innerHTML = `  ${bar} ${percent}%  ${loadingSteps[stepIndex]}`;
+        scrollToBottom();
+
+        if (progress >= 100) {
+          clearInterval(loadingInterval);
+          setTimeout(() => {
+            loadingLine.remove();
+            printLine('');
+            showProjectDetail(project);
+          }, 200);
+        }
+      }, 80);
+    }
+
+    let currentProject = null;
+    let selectionMode = false;
+    let selectedOption = 1;
+
+    function showProjectDetail(project) {
+      currentProject = project;
+
+      printLine(project.name + ' (' + project.year + ')');
+      printLine('');
+
+      // Split summary into paragraphs and print each
+      const paragraphs = project.summary.split('\n\n');
+      paragraphs.forEach(p => {
+        printLine(p);
+        printLine('');
+      });
+
+      // Show external URL if available
+      if (project.url) {
+        printLine('<span class="link" onclick="window.open(\'' + project.url + '\', \'_blank\')">' + project.url + '</span>');
+        printLine('');
+      }
+
+      // Show selection options
+      showProjectOptions();
+    }
+
+    function showProjectOptions() {
+      selectionMode = true;
+      selectedOption = 1;
+
+      const optionsContainer = document.createElement('div');
+      optionsContainer.id = 'project-options';
+
+      const hasSlug = currentProject && currentProject.slug;
+
+      if (hasSlug) {
+        optionsContainer.innerHTML = `
+          <div class="option-item" id="option-1"><span class="option-marker">></span> 1. view case study</div>
+          <div class="option-item" id="option-2"><span class="option-marker"> </span> 2. back</div>
+        `;
+      } else {
+        // No case study available, just show back option
+        optionsContainer.innerHTML = `
+          <div class="option-item" id="option-1"><span class="option-marker">></span> 1. back</div>
+        `;
+        selectedOption = 1;
+      }
+
+      terminalOutput.appendChild(optionsContainer);
+      scrollToBottom();
+
+      document.addEventListener('keydown', handleOptionKeyDown);
+    }
+
+    function updateOptionUI() {
+      const option1 = document.getElementById('option-1');
+      const option2 = document.getElementById('option-2');
+
+      if (option1) {
+        option1.querySelector('.option-marker').textContent = selectedOption === 1 ? '>' : ' ';
+      }
+      if (option2) {
+        option2.querySelector('.option-marker').textContent = selectedOption === 2 ? '>' : ' ';
+      }
+    }
+
+    function handleOptionKeyDown(e) {
+      if (!selectionMode) return;
+
+      const hasSlug = currentProject && currentProject.slug;
+      const maxOptions = hasSlug ? 2 : 1;
+
+      if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        selectedOption = Math.max(1, selectedOption - 1);
+        updateOptionUI();
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        selectedOption = Math.min(maxOptions, selectedOption + 1);
+        updateOptionUI();
+      } else if (e.key === '1') {
+        e.preventDefault();
+        selectedOption = 1;
+        confirmOption();
+      } else if (e.key === '2' && hasSlug) {
+        e.preventDefault();
+        selectedOption = 2;
+        confirmOption();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        confirmOption();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        selectedOption = hasSlug ? 2 : 1;
+        confirmOption();
+      }
+    }
+
+    function confirmOption() {
+      selectionMode = false;
+      document.removeEventListener('keydown', handleOptionKeyDown);
+
+      const optionsContainer = document.getElementById('project-options');
+      if (optionsContainer) optionsContainer.remove();
+
+      const hasSlug = currentProject && currentProject.slug;
+
+      if (hasSlug && selectedOption === 1) {
+        // View case study
+        printLine('');
+        window.location.href = currentProject.slug + '.html';
+      } else {
+        // Back to terminal
+        printLine('');
+        createInputLine();
+        focusInput();
+      }
+
+      currentProject = null;
+    }
+
+    function showSkills() {
+      printLine('');
+      portfolioData.skills.forEach(s => printLine('- ' + s));
+      printLine('');
+    }
+
+    function showTools() {
+      printLine('');
+      portfolioData.tools.forEach(t => printLine('- ' + t));
+      printLine('');
+    }
+
+    function showExperience() {
+      printLine('');
+      portfolioData.experience.forEach(e => {
+        printLine('- ' + e.company);
+        printLine('  ' + e.role);
+        printLine('  ' + e.period);
+        printLine('');
+      });
+    }
+
+    function showSocial() {
+      printLine('');
+      printLine(`- <span class="link" onclick="window.open('${portfolioData.social.dribbble}', '_blank')">dribbble.com/chrshydn</span>`);
+      printLine(`- <span class="link" onclick="window.open('${portfolioData.social.linkedin}', '_blank')">linkedin.com/in/chrshydn</span>`);
+      printLine(`- <span class="link" onclick="window.open('${portfolioData.social.github}', '_blank')">github.com/chrshydn</span>`);
+      printLine(`- <span class="link" onclick="window.open('${portfolioData.social.instagram}', '_blank')">instagram.com/chrshydn</span>`);
+      printLine('');
+    }
+
+    function showAbout() {
+      printLine('');
+      printLine(portfolioData.about.name);
+      printLine(portfolioData.about.title);
+      printLine(portfolioData.about.location);
+      printLine('');
+      printLine(portfolioData.about.bio);
+      printLine('');
+    }
+
+    function showContact() {
+      printLine('');
+      printLine(`- <span class="link" onclick="window.location.href='mailto:${portfolioData.about.email}'">${portfolioData.about.email}</span>`);
+      printLine('- ' + portfolioData.about.location);
+      printLine('');
+    }
+
+    function clearTerminal() {
+      terminalOutput.innerHTML = '';
+      printLogo();
+      printLine('');
+      printLine('Terminal cleared.');
+      printLine('');
+    }
+
+    // Click to focus
+    document.addEventListener('click', (e) => {
+      if (!e.target.classList.contains('link')) {
+        focusInput();
+      }
+    });
+
+    // Init
+    window.addEventListener('load', initTerminal);
+  </script>
+</body>
+</html>
