@@ -783,18 +783,36 @@
 
       if (hasSlug) {
         optionsContainer.innerHTML = `
-          <div class="option-item" id="option-1"><span class="option-marker">></span> 1. view case study</div>
-          <div class="option-item" id="option-2"><span class="option-marker"> </span> 2. back</div>
+          <div class="option-item link" id="option-1"><span class="option-marker">></span> 1. view case study</div>
+          <div class="option-item link" id="option-2"><span class="option-marker"> </span> 2. back</div>
         `;
       } else {
         // No case study available, just show back option
         optionsContainer.innerHTML = `
-          <div class="option-item" id="option-1"><span class="option-marker">></span> 1. back</div>
+          <div class="option-item link" id="option-1"><span class="option-marker">></span> 1. back</div>
         `;
         selectedOption = 1;
       }
 
       terminalOutput.appendChild(optionsContainer);
+      
+      // Add click handlers for mobile users
+      const option1 = document.getElementById('option-1');
+      const option2 = document.getElementById('option-2');
+      
+      if (option1) {
+        option1.addEventListener('click', () => {
+          selectedOption = 1;
+          confirmOption();
+        });
+      }
+      if (option2) {
+        option2.addEventListener('click', () => {
+          selectedOption = 2;
+          confirmOption();
+        });
+      }
+      
       scrollToBottom();
 
       document.addEventListener('keydown', handleOptionKeyDown);
