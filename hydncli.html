@@ -257,12 +257,20 @@
       display: flex;
       align-items: center;
       margin-top: 4px;
+      position: relative;
     }
 
     .input-prompt {
       color: var(--vscode-bright-green);
       margin-right: 8px;
       flex-shrink: 0;
+    }
+
+    .input-wrapper {
+      position: relative;
+      flex: 1;
+      display: flex;
+      align-items: center;
     }
 
     #command-input {
@@ -274,6 +282,63 @@
       flex: 1;
       outline: none;
       caret-color: var(--vscode-fg);
+      position: relative;
+      z-index: 2;
+    }
+
+    .ghost-text {
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: var(--vscode-fg-dim);
+      font-family: inherit;
+      font-size: 13px;
+      pointer-events: none;
+      z-index: 1;
+      white-space: pre;
+    }
+
+    /* Autocomplete Dropdown */
+    .autocomplete-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
+      background: var(--vscode-panel-bg);
+      border: 1px solid var(--vscode-border);
+      border-radius: 3px;
+      min-width: 200px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .autocomplete-item {
+      padding: 4px 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .autocomplete-item:hover,
+    .autocomplete-item.selected {
+      background: var(--vscode-highlight);
+    }
+
+    .autocomplete-icon {
+      color: var(--vscode-cyan);
+      font-size: 11px;
+    }
+
+    .autocomplete-name {
+      color: var(--vscode-fg);
+    }
+
+    .autocomplete-match {
+      color: var(--vscode-cyan);
+      font-weight: bold;
     }
 
     /* Responsive */
@@ -420,6 +485,11 @@
     let commandHistory = [];
     let historyIndex = -1;
 
+    // Autocomplete State
+    let autocompleteVisible = false;
+    let autocompleteItems = [];
+    let autocompleteIndex = 0;
+
     // Logo Art
     const logoArt = `┏━━━━━━━━━━━━━━━━━━━━┓
 ┃                    ┃
@@ -485,12 +555,17 @@
       inputLine.className = 'input-line';
       inputLine.innerHTML = `
         <span class="input-prompt">❯</span>
-        <input type="text" id="command-input" autocomplete="off" spellcheck="false" autofocus>
+        <div class="input-wrapper">
+          <span class="ghost-text" id="ghost-text"></span>
+          <input type="text" id="command-input" autocomplete="off" spellcheck="false" autofocus>
+          <div class="autocomplete-dropdown" id="autocomplete-dropdown" style="display: none;"></div>
+        </div>
       `;
       terminalOutput.appendChild(inputLine);
 
       const input = document.getElementById('command-input');
       input.addEventListener('keydown', handleKeyDown);
+      input.addEventListener('input', handleInput);
       scrollToBottom();
     }
 
@@ -504,10 +579,33 @@
     }
 
     function handleKeyDown(e) {
-
       const input = e.target;
 
+      // Handle autocomplete navigation when dropdown is visible
+      if (autocompleteVisible) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          autocompleteIndex = Math.min(autocompleteIndex + 1, autocompleteItems.length - 1);
+          updateAutocompleteSelection();
+          return;
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          autocompleteIndex = Math.max(autocompleteIndex - 1, 0);
+          updateAutocompleteSelection();
+          return;
+        } else if (e.key === 'Enter' || e.key === 'Tab') {
+          e.preventDefault();
+          acceptAutocomplete();
+          return;
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          hideAutocomplete();
+          return;
+        }
+      }
+
       if (e.key === 'Enter') {
+        hideAutocomplete();
         const command = input.value.trim();
         if (command) {
           commandHistory.push(command);
@@ -519,6 +617,7 @@
         if (historyIndex > 0) {
           historyIndex--;
           input.value = commandHistory[historyIndex];
+          updateGhostText('');
         }
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -529,9 +628,20 @@
           historyIndex = commandHistory.length;
           input.value = '';
         }
+        updateGhostText('');
       } else if (e.key === 'Tab') {
         e.preventDefault();
-        autoComplete(input);
+        // If ghost text is showing, accept it
+        const ghostText = document.getElementById('ghost-text');
+        if (ghostText && ghostText.textContent) {
+          input.value = ghostText.textContent;
+          updateGhostText('');
+        } else {
+          autoComplete(input);
+        }
+      } else if (e.key === 'Escape') {
+        hideAutocomplete();
+        updateGhostText('');
       }
     }
 
@@ -551,6 +661,133 @@
       const commands = ['list', 'view', 'about', 'skills', 'tools', 'experience', 'contact', 'help', 'clear', 'exit', 'social'];
       const match = commands.find(c => c.startsWith(val) && c !== val);
       if (match) input.value = match;
+    }
+
+    function handleInput(e) {
+      const input = e.target;
+      const val = input.value.toLowerCase();
+
+      // Check if typing "view " followed by a partial name
+      if (val.startsWith('view ') && val.length > 5) {
+        const partialName = val.slice(5);
+        const allProjects = [...portfolioData.featured, ...portfolioData.projects, ...portfolioData.shipped];
+
+        // Filter projects that match the partial name
+        const matches = allProjects.filter(p =>
+          p.name.toLowerCase().startsWith(partialName) ||
+          p.name.toLowerCase().includes(partialName)
+        );
+
+        if (matches.length > 0) {
+          showAutocomplete(matches, partialName);
+
+          // Show ghost text for first match
+          const firstMatch = matches[0].name.toLowerCase();
+          if (firstMatch.startsWith(partialName)) {
+            updateGhostText('view ' + firstMatch);
+          } else {
+            updateGhostText('');
+          }
+        } else {
+          hideAutocomplete();
+          updateGhostText('');
+        }
+      } else {
+        hideAutocomplete();
+        updateGhostText('');
+      }
+    }
+
+    function showAutocomplete(projects, searchTerm) {
+      const dropdown = document.getElementById('autocomplete-dropdown');
+      if (!dropdown) return;
+
+      autocompleteItems = projects;
+      autocompleteIndex = 0;
+      autocompleteVisible = true;
+
+      dropdown.innerHTML = projects.map((project, index) => {
+        const name = project.name;
+        const lowerName = name.toLowerCase();
+        const matchIndex = lowerName.indexOf(searchTerm);
+
+        let displayName;
+        if (matchIndex >= 0) {
+          const before = name.slice(0, matchIndex);
+          const match = name.slice(matchIndex, matchIndex + searchTerm.length);
+          const after = name.slice(matchIndex + searchTerm.length);
+          displayName = `${before}<span class="autocomplete-match">${match}</span>${after}`;
+        } else {
+          displayName = name;
+        }
+
+        return `
+          <div class="autocomplete-item ${index === 0 ? 'selected' : ''}" data-index="${index}">
+            <span class="autocomplete-icon">◆</span>
+            <span class="autocomplete-name">${displayName}</span>
+          </div>
+        `;
+      }).join('');
+
+      dropdown.style.display = 'block';
+
+      // Add click handlers
+      dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+        item.addEventListener('click', () => {
+          autocompleteIndex = parseInt(item.dataset.index);
+          acceptAutocomplete();
+        });
+      });
+    }
+
+    function hideAutocomplete() {
+      const dropdown = document.getElementById('autocomplete-dropdown');
+      if (dropdown) {
+        dropdown.style.display = 'none';
+      }
+      autocompleteVisible = false;
+      autocompleteItems = [];
+      autocompleteIndex = 0;
+    }
+
+    function updateAutocompleteSelection() {
+      const dropdown = document.getElementById('autocomplete-dropdown');
+      if (!dropdown) return;
+
+      dropdown.querySelectorAll('.autocomplete-item').forEach((item, index) => {
+        item.classList.toggle('selected', index === autocompleteIndex);
+      });
+
+      // Update ghost text to show selected item
+      if (autocompleteItems[autocompleteIndex]) {
+        const selectedName = autocompleteItems[autocompleteIndex].name.toLowerCase();
+        updateGhostText('view ' + selectedName);
+      }
+
+      // Scroll selected item into view
+      const selectedItem = dropdown.querySelector('.autocomplete-item.selected');
+      if (selectedItem) {
+        selectedItem.scrollIntoView({ block: 'nearest' });
+      }
+    }
+
+    function acceptAutocomplete() {
+      const input = document.getElementById('command-input');
+      if (!input || !autocompleteItems[autocompleteIndex]) return;
+
+      const selectedProject = autocompleteItems[autocompleteIndex];
+      input.value = 'view ' + selectedProject.name.toLowerCase();
+
+      hideAutocomplete();
+      updateGhostText('');
+      input.focus();
+    }
+
+    function updateGhostText(text) {
+      const ghostText = document.getElementById('ghost-text');
+      if (ghostText) {
+        ghostText.textContent = text;
+      }
     }
 
     function executeCommand(command) {
