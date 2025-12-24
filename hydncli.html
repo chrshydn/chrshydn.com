@@ -549,6 +549,7 @@
       printLine('- tools             tools list');
       printLine('- contact           contact info');
       printLine('- social            social links');
+      printLine('- play              play a game of pong');
       printLine('- clear             clear terminal');
       printLine('- exit              return to portfolio');
       printLine('');
@@ -665,7 +666,7 @@
         return;
       }
 
-      const commands = ['list', 'view', 'about', 'skills', 'tools', 'experience', 'contact', 'help', 'clear', 'exit', 'social'];
+      const commands = ['list', 'view', 'about', 'skills', 'tools', 'experience', 'contact', 'help', 'clear', 'exit', 'social', 'play'];
       const match = commands.find(c => c.startsWith(val) && c !== val);
       if (match) input.value = match;
     }
@@ -866,6 +867,10 @@
         case 'social':
           showSocial();
           createInputLine();
+          break;
+        case 'play':
+        case 'pong':
+          startPongGame();
           break;
         case 'clear':
         case 'cls':
@@ -1175,6 +1180,183 @@
       printLine(`- <span class="link" onclick="window.location.href='mailto:${portfolioData.about.email}'">${portfolioData.about.email}</span>`);
       printLine('- ' + portfolioData.about.location);
       printLine('');
+    }
+
+    // Pong Game
+    let pongGameActive = false;
+    let pongGameLoop = null;
+    let pongState = null;
+
+    function startPongGame() {
+      pongGameActive = true;
+
+      // Game dimensions
+      const width = 40;
+      const height = 15;
+      const paddleWidth = 7;
+
+      pongState = {
+        width: width,
+        height: height,
+        paddleWidth: paddleWidth,
+        paddleX: Math.floor((width - paddleWidth) / 2),
+        ballX: Math.floor(width / 2),
+        ballY: Math.floor(height / 2),
+        ballDX: 1,
+        ballDY: -1,
+        score: 0
+      };
+
+      printLine('');
+      printLine('<span class="info">PONG</span> - Use LEFT/RIGHT arrows to move. DOWN arrow to quit.');
+      printLine('');
+
+      // Create game container
+      const gameContainer = document.createElement('div');
+      gameContainer.id = 'pong-game';
+      gameContainer.style.fontFamily = 'monospace';
+      gameContainer.style.whiteSpace = 'pre';
+      gameContainer.style.lineHeight = '1.2';
+      terminalOutput.appendChild(gameContainer);
+
+      // Add keyboard listener
+      document.addEventListener('keydown', handlePongKeyDown);
+
+      // Start game loop
+      pongGameLoop = setInterval(updatePongGame, 100);
+      renderPongGame();
+    }
+
+    function handlePongKeyDown(e) {
+      if (!pongGameActive) return;
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        pongState.paddleX = Math.max(1, pongState.paddleX - 2);
+        renderPongGame();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        pongState.paddleX = Math.min(pongState.width - pongState.paddleWidth - 1, pongState.paddleX + 2);
+        renderPongGame();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        endPongGame(false);
+      }
+    }
+
+    function updatePongGame() {
+      if (!pongGameActive) return;
+
+      const s = pongState;
+
+      // Move ball
+      s.ballX += s.ballDX;
+      s.ballY += s.ballDY;
+
+      // Wall collisions (left and right)
+      if (s.ballX <= 1) {
+        s.ballX = 1;
+        s.ballDX = Math.abs(s.ballDX);
+      }
+      if (s.ballX >= s.width - 2) {
+        s.ballX = s.width - 2;
+        s.ballDX = -Math.abs(s.ballDX);
+      }
+
+      // Top wall
+      if (s.ballY <= 1) {
+        s.ballY = 1;
+        s.ballDY = Math.abs(s.ballDY);
+      }
+
+      // Paddle collision (bottom)
+      if (s.ballY >= s.height - 3) {
+        if (s.ballX >= s.paddleX && s.ballX < s.paddleX + s.paddleWidth) {
+          s.ballY = s.height - 3;
+          s.ballDY = -Math.abs(s.ballDY);
+          s.score++;
+
+          // Add some angle based on where ball hits paddle
+          const hitPos = (s.ballX - s.paddleX) / s.paddleWidth;
+          if (hitPos < 0.3) {
+            s.ballDX = -Math.abs(s.ballDX) || -1;
+          } else if (hitPos > 0.7) {
+            s.ballDX = Math.abs(s.ballDX) || 1;
+          }
+        }
+      }
+
+      // Ball missed (game over)
+      if (s.ballY >= s.height - 1) {
+        endPongGame(true);
+        return;
+      }
+
+      renderPongGame();
+    }
+
+    function renderPongGame() {
+      const gameContainer = document.getElementById('pong-game');
+      if (!gameContainer) return;
+
+      const s = pongState;
+      let output = '';
+
+      // Top border
+      output += '┌' + '─'.repeat(s.width - 2) + '┐\n';
+
+      // Game area
+      for (let y = 1; y < s.height - 1; y++) {
+        output += '│';
+        for (let x = 1; x < s.width - 1; x++) {
+          if (y === s.height - 2 && x >= s.paddleX && x < s.paddleX + s.paddleWidth) {
+            output += '═';
+          } else if (x === Math.round(s.ballX) && y === Math.round(s.ballY)) {
+            output += '●';
+          } else {
+            output += ' ';
+          }
+        }
+        output += '│\n';
+      }
+
+      // Bottom border
+      output += '└' + '─'.repeat(s.width - 2) + '┘\n';
+
+      // Score
+      output += '<span class="success">Score: ' + s.score + '</span>';
+
+      gameContainer.innerHTML = output;
+      scrollToBottom();
+    }
+
+    function endPongGame(isGameOver) {
+      pongGameActive = false;
+
+      if (pongGameLoop) {
+        clearInterval(pongGameLoop);
+        pongGameLoop = null;
+      }
+
+      document.removeEventListener('keydown', handlePongKeyDown);
+
+      const gameContainer = document.getElementById('pong-game');
+      if (gameContainer) {
+        gameContainer.remove();
+      }
+
+      printLine('');
+      if (isGameOver) {
+        printLine('<span class="warning">Game Over!</span> Final score: <span class="success">' + pongState.score + '</span>');
+      } else {
+        printLine('Game ended. Final score: <span class="success">' + pongState.score + '</span>');
+      }
+      printLine('');
+
+      pongState = null;
+
+      createInputLine();
+      focusInput();
     }
 
     function clearTerminal() {
